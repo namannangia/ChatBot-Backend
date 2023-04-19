@@ -3,6 +3,7 @@ import { PineconeStore } from "langchain/vectorstores/pinecone";
 import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 import { ChatOpenAI } from "langchain/chat_models/openai";
 import { VectorDBQAChain } from "langchain/chains";
+import { MongoClient } from "mongodb";
 import { index } from "./pinecone.js";
 import bodyParser from "body-parser";
 import * as redirects from "https";
