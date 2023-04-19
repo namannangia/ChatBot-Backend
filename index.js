@@ -23,6 +23,7 @@ function extractVideoId(url) {
     /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#\&\?]*).*/;
   var match = url.match(regExp);
   if (match && match[7].length == 11) {
+    console.log(match[7]);
     return match[7];
   } else {
     return null;
@@ -79,7 +80,7 @@ router.post("/fromUrlToText", (req, res) => {
                   axios
                     .request(config)
                     .then((response) => {
-                      console.log(response.data.text);
+                      console.log("Data transcribed successfully!");
                       fs.writeFile(
                         global_text_file_name,
                         response.data.text,
@@ -105,9 +106,9 @@ router.post("/fromUrlToText", (req, res) => {
                                 pineconeIndex: index,
                                 namespace: "langchain",
                               }
-                            ).then(() =>
-                              res.status(200).send("Content recieved!")
-                            );
+                            ).then(() => {
+                              res.status(200).send("Content recieved!");
+                            });
                           })();
                         }
                       );
@@ -119,7 +120,6 @@ router.post("/fromUrlToText", (req, res) => {
                   res.status(200).send("File not reading");
                 }
               }
-              return 0;
             });
           });
         }
@@ -129,6 +129,38 @@ router.post("/fromUrlToText", (req, res) => {
       });
   } else {
     res.status(500).json({ message: "Could not extract Video id." });
+  }
+});
+
+router.post("/queryContext", async (req, res) => {
+  const embedder = new OpenAIEmbeddings();
+  const pineconeStore = new PineconeStore(embedder, {
+    pineconeIndex: index,
+    namespace: "langchain",
+  });
+
+  const model = new ChatOpenAI({
+    temperature: 0.9,
+    openAIApiKey: process.env.OPENAI_API_KEY,
+    modelName: "gpt-3.5-turbo",
+  });
+
+  const chain = VectorDBQAChain.fromLLM(model, pineconeStore, {
+    k: 5,
+    returnSourceDocuments: true,
+  });
+  const text = await req.body.text;
+  try {
+    const response = await chain.call({ query: text });
+    const { text: responseText, sourceDocuments } = response;
+
+    return res.status(200).json({
+      text: responseText,
+      // sources: sourceDocuments,
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(404).send({ message: `${text} doesn't match any search` });
   }
 });
 
