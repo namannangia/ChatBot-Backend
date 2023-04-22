@@ -4,8 +4,7 @@ import { MongoClient, GridFSBucket } from "mongodb";
 import { PassThrough } from "stream";
 import fs from "fs";
 
-const uri =
-  `mongodb+srv://admin:${process.env.MONGO_PASS}@cluster0.arjtg6l.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://admin:${process.env.MONGO_PASS}@cluster0.arjtg6l.mongodb.net/?retryWrites=true&w=majority`;
 
 // Set the URL of the audio file
 // const url =
@@ -26,15 +25,15 @@ MongoClient.connect(uri, function (err, client) {
   const db = client.db("mydatabase");
   // Create a GridFSBucket for the chosen collection
   const bucket = new GridFSBucket(db, { bucketName: collectionName });
-  
+
   // Use the appropriate module (http or https) to download the file
   //   const protocol = url.startsWith("https") ? https : http;
   //   const request = https.get(url);
   const request = fs.createReadStream(url);
   // Create a PassThrough stream to pipe the file data into
   const stream = new PassThrough();
-  
-  const collection=db.collection(collectionName)
+
+  const collection = db.collection(collectionName);
   // Pipe the file data into the PassThrough stream
   if (request) {
     log("File fetched successfully from server!");
@@ -45,11 +44,9 @@ MongoClient.connect(uri, function (err, client) {
 
   collection.findOne({ filename: "0.txt" }, function (err, result) {
     if (err) throw err;
-    if(result)
-    {
-        
+    if (result) {
     }
-     });
+  });
 
   stream.on("finish", function () {
     log("File rendered locally!");

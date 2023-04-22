@@ -2,6 +2,7 @@ import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { PineconeStore } from "langchain/vectorstores/pinecone";
 import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 import { ChatOpenAI } from "langchain/chat_models/openai";
+import youtubeMp3Converter from "youtube-mp3-converter";
 import { VectorDBQAChain } from "langchain/chains";
 import { MongoClient } from "mongodb";
 import { index } from "./pinecone.js";
@@ -15,127 +16,93 @@ import cors from "cors";
 import fs from "fs";
 import { log } from "console";
 
-let data = new FormData();
-var global_text_file_name = "0.txt";
-var global_audio_file_name = "0.mp3";
-dotenv.config();
-
-function extractVideoId(url) {
-  var regExp =
-    /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#\&\?]*).*/;
-  var match = url.match(regExp);
-  if (match && match[7].length == 11) {
-    console.log(match[7]);
-    return match[7];
-  } else {
-    return null;
-  }
-}
 const app = express();
-app.use(cors());
+const convertLinkToMp3 = youtubeMp3Converter("./");
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+var global_audio_file_name = "0.mp3";
+var global_text_file_name = "0.txt";
 const router = express.Router();
+app.use(bodyParser.json());
+let data = new FormData();
 app.use("/api", router);
+dotenv.config();
+app.use(cors());
 // const port = process.env.PORT || 8800;
 
 const port = 8800;
 
 router.post("/fromUrlToText", (req, res) => {
-  if (extractVideoId(req.body.url) !== null) {
-    var videoId = extractVideoId(req.body.url);
-    var options = {
-      method: "GET",
-      url: "https://youtube-mp36.p.rapidapi.com/dl",
-      params: { id: videoId },
-      headers: {
-        "X-RapidAPI-Host": "youtube-mp36.p.rapidapi.com",
-        "X-RapidAPI-Key": `${process.env.RAPID_API_KEY}`,
-      },
-    };
+  youtubeMp3Converter("./")("https://www.youtube.com/watch?v=p5GQSf1gxbk", {
+    title: "0",
+  })
+    .then(() => {
+      {
+        console.log("File writing finished");
 
-    axios
-      .request(options)
-      .then(function (response) {
-        if (response.data.status != "ok") {
-          res.status(500).json({ message: "Could not convert to mp3" });
-        } else {
-          var linkToMp3 = response.data.link;
-          console.log("URL Found: " + linkToMp3);
-          const file = fs.createWriteStream(global_audio_file_name);
-          console.log("File writing started");
-          const request = redirects.get(linkToMp3, function (response) {
-            response.pipe(file);
-            file.on("finish", () => {
-              {
-                console.log("File writing finished");
-                const file2 = fs.createReadStream(global_audio_file_name);
-                file2.on("end",()=>{
-                  data.append("file", file2);
-                  data.append("model", "whisper-1");
-                  let config = {
-                    method: "post",
-                    maxBodyLength: Infinity,
-                    url: "https://api.openai.com/v1/audio/transcriptions",
-                    headers: {
-                      Authorization: `Bearer ${process.env.OPEN_AI_KEY}`,
-                      ...data.getHeaders(),
-                    },
-                    data: data,
-                  };
-                  axios
-                    .request(config)
-                    .then((response) => {
-                      console.log("Data transcribed successfully!");
-                      fs.writeFile(
-                        global_text_file_name,
-                        response.data.text,
-                        (err) => {
-                          if (err) throw err;
-                          const textSplitter =
-                            new RecursiveCharacterTextSplitter({
-                              chunkSize: 200,
-                              chunkOverlap: 0,
-                            });
-                          const embedder = new OpenAIEmbeddings();
+        try {
+          const file2 = fs.createReadStream("./0.mp3");
+          console.log("File reading finished");
+          data.append("file", file2);
+          data.append("model", "whisper-1");
+          let config = {
+            method: "post",
+            maxBodyLength: Infinity,
+            url: "https://api.openai.com/v1/audio/transcriptions",
+            headers: {
+              Authorization: `Bearer ${process.env.OPEN_AI_KEY}`,
+              ...data.getHeaders(),
+            },
+            data: data,
+          };
+          axios
+            .request(config)
+            .then((response) => {
+              console.log("Data transcribed successfully!");
+              fs.writeFile(global_text_file_name, response.data.text, (err) => {
+                if (err) throw err;
+                const textSplitter = new RecursiveCharacterTextSplitter({
+                  chunkSize: 200,
+                  chunkOverlap: 0,
+                });
+                const embedder = new OpenAIEmbeddings();
 
-                          (async () => {
-                            const article = await fs
-                              .readFileSync(global_text_file_name)
-                              .toString();
-                            const splittedText =
-                              await textSplitter.createDocuments([article]);
-                            PineconeStore.fromDocuments(
-                              splittedText,
-                              embedder,
-                              {
-                                pineconeIndex: index,
-                                namespace: "langchain",
-                              }
-                            ).then(() => {
-                              res.status(200).send("Content recieved!");
-                            });
-                          })();
-                        }
-                      );
+                (async () => {
+                  const article = fs
+                    .readFileSync(global_text_file_name)
+                    .toString();
+                  const splittedText = await textSplitter.createDocuments([
+                    article,
+                  ]);
+                  PineconeStore.fromDocuments(splittedText, embedder, {
+                    pineconeIndex: index,
+                    namespace: "langchain",
+                  })
+                    .then(() => {
+                      res.status(200).send("Content recieved!");
                     })
-                    .catch((error) => {
-                      console.log("Error at line 121");
-                      console.log(error);
+                    .catch((err) => {
+                      console.log("Error at 95");
+                      console.error(err);
                     });
-                })
-              }
+                })();
+              });
+            })
+            .catch((error) => {
+              console.log("Error at line 121");
+              console.log(error);
             });
-          });
+        } catch (err) {
+          console.log("Error at 95");
+          console.error(err);
         }
-      })
-      .catch(function (error) {
-        console.log("Some error with index.js 132");
-        console.error(error);
-      });
-  } else {
-    res.status(500).json({ message: "Could not extract Video id." });
-  }
+
+        const file2 = fs.createReadStream(global_audio_file_name);
+      }
+    })
+    .catch(function (error) {
+      console.log("Some error with index.js 132");
+      console.error(error);
+    });
 });
 
 router.post("/queryContext", async (req, res) => {
@@ -176,24 +143,4 @@ router.get("/", async (req, res) => {
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
-});
-
-async function videoIdToMp3(videoId) {
-  const linkToMp3 = await axios
-    .get("https://youtube-mp36.p.rapidapi.com/dl?id=" + videoId, {
-      headers: {
-        "X-RapidAPI-Host": "youtube-mp36.p.rapidapi.com",
-        "X-RapidAPI-Key": process.env.RAPID_API_KEY,
-      },
-    })
-    .then((res) => {
-      // console.log(res.data.link);
-      return res;
-    });
-}
-
-await console.log(videoIdToMp3("qqGadG0IBKY"));
-
-videoIdToMp3("qqGadG0IBKY").then((data) => {
-  console.log("Data:" + data);
 });

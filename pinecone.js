@@ -7,4 +7,4 @@ await pinecone.init({
   apiKey: process.env.PINECONE_API_KEY,
 });
 
-export const index = pinecone.Index(process.env.INDEX_NAME);
+export const index = pinecone.Index("langchain75");
