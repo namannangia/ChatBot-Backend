@@ -13,6 +13,7 @@ import dotenv from "dotenv";
 import axios from "axios";
 import cors from "cors";
 import fs from "fs";
+import { log } from "console";
 
 let data = new FormData();
 var global_text_file_name = "0.txt";
@@ -36,8 +37,9 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 const router = express.Router();
 app.use("/api", router);
-const port = process.env.PORT|| 8800;
+// const port = process.env.PORT || 8800;
 
+const port = 8800;
 
 router.post("/fromUrlToText", (req, res) => {
   if (extractVideoId(req.body.url) !== null) {
@@ -59,14 +61,16 @@ router.post("/fromUrlToText", (req, res) => {
           res.status(500).json({ message: "Could not convert to mp3" });
         } else {
           var linkToMp3 = response.data.link;
-
+          console.log("URL Found: " + linkToMp3);
           const file = fs.createWriteStream(global_audio_file_name);
+          console.log("File writing started");
           const request = redirects.get(linkToMp3, function (response) {
             response.pipe(file);
             file.on("finish", () => {
               {
+                console.log("File writing finished");
                 const file2 = fs.createReadStream(global_audio_file_name);
-                if (file2) {
+                file2.on("end",()=>{
                   data.append("file", file2);
                   data.append("model", "whisper-1");
                   let config = {
@@ -116,17 +120,17 @@ router.post("/fromUrlToText", (req, res) => {
                       );
                     })
                     .catch((error) => {
+                      console.log("Error at line 121");
                       console.log(error);
                     });
-                } else {
-                  res.status(200).send("File not reading");
-                }
+                })
               }
             });
           });
         }
       })
       .catch(function (error) {
+        console.log("Some error with index.js 132");
         console.error(error);
       });
   } else {
@@ -166,10 +170,30 @@ router.post("/queryContext", async (req, res) => {
   }
 });
 
-router.get("/",async (req,res)=>{
-  return res.status(200).send("Server running")
-})
+router.get("/", async (req, res) => {
+  return res.status(200).send("Server running");
+});
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
+});
+
+async function videoIdToMp3(videoId) {
+  const linkToMp3 = await axios
+    .get("https://youtube-mp36.p.rapidapi.com/dl?id=" + videoId, {
+      headers: {
+        "X-RapidAPI-Host": "youtube-mp36.p.rapidapi.com",
+        "X-RapidAPI-Key": process.env.RAPID_API_KEY,
+      },
+    })
+    .then((res) => {
+      // console.log(res.data.link);
+      return res;
+    });
+}
+
+await console.log(videoIdToMp3("qqGadG0IBKY"));
+
+videoIdToMp3("qqGadG0IBKY").then((data) => {
+  console.log("Data:" + data);
 });
