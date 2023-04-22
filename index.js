@@ -67,23 +67,18 @@ router.post("/fromUrlToText", (req, res) => {
                 const embedder = new OpenAIEmbeddings();
 
                 (async () => {
-                  const article = fs
-                    .readFileSync(global_text_file_name)
-                    .toString();
-                  const splittedText = await textSplitter.createDocuments([
-                    article,
-                  ]);
-                  PineconeStore.fromDocuments(splittedText, embedder, {
-                    pineconeIndex: index,
-                    namespace: "langchain",
-                  })
-                    .then(() => {
+                  fs.readFile("./0.txt", "utf8", async (err, dataFromFile) => {
+                    if (err) throw err;
+                    const splittedText = await textSplitter.createDocuments([
+                      dataFromFile,
+                    ]);
+                    PineconeStore.fromDocuments(splittedText, embedder, {
+                      pineconeIndex: index,
+                      namespace: "langchain",
+                    }).then(() => {
                       res.status(200).send("Content recieved!");
-                    })
-                    .catch((err) => {
-                      console.log("Error at 95");
-                      console.error(err);
                     });
+                  });
                 })();
               });
             })
