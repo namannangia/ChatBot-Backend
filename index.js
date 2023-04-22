@@ -36,7 +36,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 const router = express.Router();
 app.use("/api", router);
-const port = process.env.PORT || 8800;
+const port = process.env.PORT|| 8800;
+
 
 router.post("/fromUrlToText", (req, res) => {
   if (extractVideoId(req.body.url) !== null) {
@@ -165,7 +166,7 @@ router.post("/queryContext", async (req, res) => {
   }
 });
 
-router.get("/",(res)=>{
+router.get("/",async (req,res)=>{
   return res.status(200).send("Server running")
 })
 
