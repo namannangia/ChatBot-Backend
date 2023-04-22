@@ -165,6 +165,10 @@ router.post("/queryContext", async (req, res) => {
   }
 });
 
+router.get("/",(res)=>{
+  return res.status(200).send("Server running")
+})
+
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
